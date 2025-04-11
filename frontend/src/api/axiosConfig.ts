@@ -1,9 +1,11 @@
 import axios from 'axios';
 
+// Determine API URL based on environment
+const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+
 // Create a specific instance
 const api = axios.create({
-  // Set the baseURL to match the server
-  baseURL: 'http://localhost:5000',
+  baseURL: API_URL,
 });
 
 // Add a request interceptor TO THE SPECIFIC INSTANCE
