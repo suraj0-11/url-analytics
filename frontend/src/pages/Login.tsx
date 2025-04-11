@@ -5,6 +5,7 @@ import { RootState } from '../store';
 // import { login } from '../store/slices'; 
 import api from '../api/axiosConfig';
 import axios from 'axios';
+import { ArrowTopRightOnSquareIcon } from '@heroicons/react/20/solid';
 
 interface BackendStatus {
   status: string;
@@ -103,8 +104,8 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="text-center mb-10">
+    <div className="min-h-screen flex flex-col items-center bg-gray-100 pt-16 pb-12 px-4 sm:px-6 lg:px-8">
+      <div className="text-center mb-8">
         <h1 className="text-4xl font-bold text-gray-800">URL Analytics Dashboard</h1>
         <p className="mt-2 text-lg text-gray-600">Please sign in to access your shortened URLs and analytics.</p>
       </div>
@@ -187,7 +188,22 @@ const Login = () => {
             </button>
           </div>
         </form>
+
+        {/* Developer Link with Icon */}
+        <div className="text-center pt-4 border-t border-gray-200">
+          <a 
+            href="https://suraj-s.vercel.app"
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="inline-flex items-center text-xs font-medium text-indigo-600 hover:text-indigo-800 hover:underline focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 rounded-md px-2 py-1"
+          >
+            Developed by Suraj S
+            <ArrowTopRightOnSquareIcon className="ml-1 h-3 w-3" aria-hidden="true" />
+          </a>
+        </div>
+
       </div>
+
     </div>
   );
 };
