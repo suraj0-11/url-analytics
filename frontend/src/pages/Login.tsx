@@ -4,6 +4,7 @@ import { RootState } from '../store';
 import { login } from '../store/slices';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import api from '../api/axiosConfig';
+import axios from 'axios';
 
 interface BackendStatus {
   status: string;
@@ -21,6 +22,8 @@ const Login = () => {
   const [backendStatus, setBackendStatus] = useState<BackendStatus | null>(null);
   const [statusLoading, setStatusLoading] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<string | null>(null);
+  const [testLoading, setTestLoading] = useState(false);
 
   const checkBackendStatus = async () => {
     setStatusLoading(true);
@@ -49,6 +52,10 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('Submitting login with:', {
+      email: formData.email,
+      password: formData.password.replace(/./g, '*')  // Log masked password for security
+    });
     dispatch(login(formData));
   };
 
@@ -68,6 +75,50 @@ const Login = () => {
     if (!backendStatus) return 'Backend unavailable';
     
     return `Backend: ${backendStatus.status}, DB: ${backendStatus.mongoConnection}`;
+  };
+
+  // Test authentication directly without redux
+  const testAuth = async () => {
+    setTestLoading(true);
+    setTestResult(null);
+    try {
+      // Test direct API call
+      const directApi = axios.create({
+        baseURL: api.defaults.baseURL,
+        timeout: 15000
+      });
+      
+      console.log('Testing direct auth with:', { 
+        url: `${api.defaults.baseURL}/api/auth/login`,
+        email: formData.email
+      });
+      
+      const response = await directApi.post('/api/auth/login', formData);
+      setTestResult(
+        `Success! Token received: ${response.data.token.substring(0, 15)}...`
+      );
+    } catch (error: any) {
+      console.error('Test auth error:', error);
+      setTestResult(
+        `Error: ${error.response?.data?.message || error.message || 'Unknown error'} (${error.response?.status || 'no status'})`
+      );
+    } finally {
+      setTestLoading(false);
+    }
+  };
+
+  // Test model files path - useful for debugging backend issues
+  const testModelPath = async () => {
+    setTestLoading(true);
+    setTestResult(null);
+    try {
+      const response = await api.get('/api/debug/model-paths');
+      setTestResult(`Model paths: ${JSON.stringify(response.data)}`);
+    } catch (error: any) {
+      setTestResult(`Cannot test model paths. Backend may not support this endpoint.`);
+    } finally {
+      setTestLoading(false);
+    }
   };
 
   return (
@@ -154,6 +205,36 @@ const Login = () => {
             </button>
           </div>
         </form>
+
+        {/* Diagnostic Tools Section */}
+        <div className="pt-4 border-t border-gray-200">
+          <h3 className="text-sm font-medium text-gray-500 mb-2">Diagnostic Tools</h3>
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={testAuth}
+              disabled={testLoading}
+              className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              {testLoading ? 'Testing...' : 'Test Authentication (Direct)'}
+            </button>
+
+            <button
+              type="button"
+              onClick={testModelPath}
+              disabled={testLoading}
+              className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              Test Model Paths
+            </button>
+          </div>
+          
+          {testResult && (
+            <div className={`mt-2 p-2 text-xs rounded ${testResult.includes('Success') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+              {testResult}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

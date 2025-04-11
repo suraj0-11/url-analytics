@@ -26,10 +26,18 @@ export const login = createAsyncThunk(
   'auth/login',
   async (credentials: { email: string; password: string }, { rejectWithValue }) => {
     try {
+      console.log('Attempting login with:', { email: credentials.email });
       const response = await api.post('/api/auth/login', credentials);
+      console.log('Login success response:', response.data);
       localStorage.setItem('token', response.data.token);
       return response.data;
     } catch (error: any) {
+      console.error('Login error details:', {
+        status: error.response?.status,
+        data: error.response?.data,
+        error: error.message
+      });
+      
       if (!error.response) {
         return rejectWithValue('Network error: Unable to reach the server. Please check your connection and server status.');
       }

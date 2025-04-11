@@ -1,11 +1,21 @@
 import axios from 'axios';
 
 // Determine API URL based on environment
-const API_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_URL = process.env.REACT_APP_API_URL || 'https://curious-dorene-finalllly-f2001d79.koyeb.app';
+
+console.log('API Configuration:', {
+  baseURL: API_URL,
+  nodeEnv: process.env.NODE_ENV,
+  reactAppApiUrl: process.env.REACT_APP_API_URL
+});
 
 // Create a specific instance
 const api = axios.create({
   baseURL: API_URL,
+  timeout: 15000, // 15 seconds timeout
+  headers: {
+    'Content-Type': 'application/json',
+  }
 });
 
 // Add a request interceptor TO THE SPECIFIC INSTANCE
@@ -15,9 +25,9 @@ api.interceptors.request.use(
     const token = localStorage.getItem('token');
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
-      console.log('[Axios Interceptor] Adding token to request');
+      console.log('[Axios Interceptor] Adding token to request:', config.url);
     } else {
-      console.log('[Axios Interceptor] No token found in localStorage');
+      console.log('[Axios Interceptor] No token found for request:', config.url);
     }
     return config;
   },
@@ -30,11 +40,31 @@ api.interceptors.request.use(
 // Add a response interceptor TO THE SPECIFIC INSTANCE
 api.interceptors.response.use(
   (response) => {
+    console.log(`[Axios Response] ${response.config.method?.toUpperCase()} ${response.config.url} - Status: ${response.status}`);
     return response;
   },
   (error) => {
+    // Detailed error logging
+    if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      console.error(`[Axios Error] ${error.config?.method?.toUpperCase() || 'REQUEST'} ${error.config?.url} - Status: ${error.response.status}`, {
+        data: error.response.data,
+        headers: error.response.headers
+      });
+    } else if (error.request) {
+      // The request was made but no response was received
+      console.error('[Axios Error] No response received', {
+        request: error.request,
+        url: error.config?.url
+      });
+    } else {
+      // Something happened in setting up the request that triggered an error
+      console.error('[Axios Error] Request setup error', error.message);
+    }
+
     if (error.response && error.response.status === 401) {
-      console.error('[Axios Interceptor] Unauthorized request - 401', error.response);
+      console.warn('[Axios Error] Unauthorized request - 401', error.response.config.url);
       
       // Clear token and redirect to login on 401 errors
       localStorage.removeItem('token');
