@@ -13,7 +13,7 @@ interface BackendStatus {
 }
 
 const Login = () => {
-  const { loading, error } = useSelector((state: RootState) => state.auth);
+  const { error } = useSelector((state: RootState) => state.auth);
   const [formData, setFormData] = useState({
     email: 'intern@dacoid.com',
     password: 'Test123',
@@ -21,7 +21,6 @@ const Login = () => {
   const [backendStatus, setBackendStatus] = useState<BackendStatus | null>(null);
   const [statusLoading, setStatusLoading] = useState(false);
   const [statusError, setStatusError] = useState<string | null>(null);
-  const [testResult, setTestResult] = useState<string | null>(null);
   const [testLoading, setTestLoading] = useState(false);
 
   const checkBackendStatus = async () => {
@@ -51,13 +50,11 @@ const Login = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('Submitting login with:', {
-      email: formData.email,
-      password: formData.password.replace(/./g, '*')  // Log masked password for security
+    console.log('Submitting login via main button (using direct method):', { 
+       email: formData.email,
+       password: formData.password.replace(/./g, '*') 
     });
-    
-    // Temporarily disable the Redux login thunk call
-    console.warn('handleSubmit disabled during simplified auth test');
+    await testAuth(); 
   };
 
   const getStatusColor = () => {
@@ -81,7 +78,6 @@ const Login = () => {
   // Test authentication directly without redux
   const testAuth = async () => {
     setTestLoading(true);
-    setTestResult(null);
     try {
       const directApi = axios.create({
         baseURL: api.defaults.baseURL,
@@ -92,7 +88,6 @@ const Login = () => {
         email: formData.email
       });
       const response = await directApi.post('/api/auth/login', formData);
-      setTestResult(`Success! Token received: ${response.data.token.substring(0, 15)}...`);
       const token = response.data.token;
       if (token) {
         localStorage.setItem('token', token);
@@ -101,22 +96,7 @@ const Login = () => {
         setTimeout(() => { window.location.href = '/dashboard'; }, 100);
       }
     } catch (error: any) {
-      console.error('Test auth error:', error);
-      setTestResult(`Error: ${error.response?.data?.message || error.message || 'Unknown error'} (${error.response?.status || 'no status'})`);
-    } finally {
-      setTestLoading(false);
-    }
-  };
-
-  // Test model files path - useful for debugging backend issues
-  const testModelPath = async () => {
-    setTestLoading(true);
-    setTestResult(null);
-    try {
-      const response = await api.get('/api/debug/model-paths');
-      setTestResult(`Model paths: ${JSON.stringify(response.data)}`);
-    } catch (error: any) {
-      setTestResult(`Cannot test model paths. Backend may not support this endpoint.`);
+      console.error('Direct login failed:', error);
     } finally {
       setTestLoading(false);
     }
@@ -193,55 +173,20 @@ const Login = () => {
           {/* Display Redux auth error */}
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded text-sm text-center">
-              <div className="font-medium">Auth Error: {error}</div>
-              {error.includes('failed') && (
-                <div className="text-xs mt-1">
-                  Try the "Test Authentication (Direct)" button below for a direct login.
-                </div>
-              )}
+              <div className="font-medium">Auth Error: {error || 'Login failed, please try again.'}</div>
             </div>
           )}
 
           <div>
             <button
               type="submit"
-              disabled={loading}
+              disabled={testLoading}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Signing in...' : 'Sign in (Redux - Disabled)'}
+              {testLoading ? 'Signing in...' : 'Sign in'}
             </button>
           </div>
         </form>
-
-        {/* Diagnostic Tools Section */}
-        <div className="pt-4 border-t border-gray-200">
-          <h3 className="text-sm font-medium text-gray-500 mb-2">Diagnostic Tools</h3>
-          <div className="space-y-2">
-            <button
-              type="button"
-              onClick={testAuth}
-              disabled={testLoading}
-              className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-            >
-              {testLoading ? 'Signing in...' : 'Direct Sign in (Use manualLogin)'}
-            </button>
-
-            <button
-              type="button"
-              onClick={testModelPath}
-              disabled={testLoading}
-              className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-            >
-              Test Model Paths
-            </button>
-          </div>
-          
-          {testResult && (
-            <div className={`mt-2 p-2 text-xs rounded ${testResult.includes('Success') ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-              {testResult}
-            </div>
-          )}
-        </div>
       </div>
     </div>
   );
