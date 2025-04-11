@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
-import { login } from '../store/slices';
-import { manualLogin } from '../store/slices/authSlice';
-import { useAppDispatch } from '../hooks/useAppDispatch';
+// Comment out login import from index
+// import { login } from '../store/slices'; 
 import api from '../api/axiosConfig';
 import axios from 'axios';
 
@@ -14,7 +13,6 @@ interface BackendStatus {
 }
 
 const Login = () => {
-  const dispatch = useAppDispatch();
   const { loading, error } = useSelector((state: RootState) => state.auth);
   const [formData, setFormData] = useState({
     email: 'intern@dacoid.com',
@@ -58,15 +56,8 @@ const Login = () => {
       password: formData.password.replace(/./g, '*')  // Log masked password for security
     });
     
-    try {
-      // Dispatch login action
-      await dispatch(login(formData)).unwrap();
-      
-      // If successful, the login.fulfilled case will handle redirection
-    } catch (error: any) {
-      console.error('Login submission error:', error);
-      // Error already handled by Redux
-    }
+    // Temporarily disable the Redux login thunk call
+    console.warn('handleSubmit disabled during simplified auth test');
   };
 
   const getStatusColor = () => {
@@ -92,43 +83,26 @@ const Login = () => {
     setTestLoading(true);
     setTestResult(null);
     try {
-      // Test direct API call
       const directApi = axios.create({
         baseURL: api.defaults.baseURL,
         timeout: 15000
       });
-      
       console.log('Testing direct auth with:', { 
         url: `${api.defaults.baseURL}/api/auth/login`,
         email: formData.email
       });
-      
       const response = await directApi.post('/api/auth/login', formData);
-      setTestResult(
-        `Success! Token received: ${response.data.token.substring(0, 15)}...`
-      );
-      
-      // Store token and update Redux state
+      setTestResult(`Success! Token received: ${response.data.token.substring(0, 15)}...`);
       const token = response.data.token;
       if (token) {
         localStorage.setItem('token', token);
         
-        // Update Redux state to match the authentication
-        dispatch(manualLogin({ 
-          token: token,
-          user: response.data.user || { email: formData.email, _id: 'unknown' }
-        }));
-        
-        // Redirect to dashboard after a short delay to allow state updates
-        setTimeout(() => {
-          window.location.href = '/dashboard';
-        }, 100);
+        // Redirect anyway, but Redux state won't be synced
+        setTimeout(() => { window.location.href = '/dashboard'; }, 100);
       }
     } catch (error: any) {
       console.error('Test auth error:', error);
-      setTestResult(
-        `Error: ${error.response?.data?.message || error.message || 'Unknown error'} (${error.response?.status || 'no status'})`
-      );
+      setTestResult(`Error: ${error.response?.data?.message || error.message || 'Unknown error'} (${error.response?.status || 'no status'})`);
     } finally {
       setTestLoading(false);
     }
@@ -216,9 +190,10 @@ const Login = () => {
             </div>
           </div>
 
+          {/* Display Redux auth error */}
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded text-sm text-center">
-              <div className="font-medium">{error}</div>
+              <div className="font-medium">Auth Error: {error}</div>
               {error.includes('failed') && (
                 <div className="text-xs mt-1">
                   Try the "Test Authentication (Direct)" button below for a direct login.
@@ -233,7 +208,7 @@ const Login = () => {
               disabled={loading}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Signing in...' : 'Sign in with Redux'}
+              {loading ? 'Signing in...' : 'Sign in (Redux - Disabled)'}
             </button>
           </div>
         </form>
@@ -248,7 +223,7 @@ const Login = () => {
               disabled={testLoading}
               className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
             >
-              {testLoading ? 'Signing in...' : 'Direct Sign in (Bypass Redux)'}
+              {testLoading ? 'Signing in...' : 'Direct Sign in (Use manualLogin)'}
             </button>
 
             <button

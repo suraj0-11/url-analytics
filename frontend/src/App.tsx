@@ -2,7 +2,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from './store';
-import { getCurrentUser, manualLogin, logout } from './store/slices/authSlice';
+// Comment out getCurrentUser import
+import { /* getCurrentUser, */ logout } from './store/slices/authSlice';
 import { useAppDispatch } from './hooks/useAppDispatch';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
@@ -41,25 +42,18 @@ function App() {
           return;
         }
         
-        // Token looks valid, fetch current user
-        dispatch(getCurrentUser())
-          .unwrap()
-          .then(() => {
-            console.log('User authenticated successfully on startup');
-          })
-          .catch(() => {
-            // If getting user fails, create basic auth state from token
-            console.log('Failed to get user data, creating basic auth state');
-            dispatch(manualLogin({ 
-              token,
-              user: { email: payload.email || 'unknown', _id: payload.id || payload.userId || 'unknown' }
-            }));
-          })
-          .finally(() => {
-            setIsLoading(false);
-          });
+        // Token looks valid, but skip getCurrentUser and manualLogin
+        console.log('Token valid on startup, but state sync is disabled.');
+        // Need to manually set isAuthenticated based on token presence
+        // Or rely on PrivateRoute checking localStorage? This is tricky.
+        // For now, just log and set loading to false.
+        setIsLoading(false); 
+        
+        // REMOVED: dispatch(manualLogin(...));
+        // REMOVED: dispatch(getCurrentUser())... logic ...
       } catch (e) {
-        console.error('Token validation error:', e);
+        console.error('Token validation error on startup:', e);
+        dispatch(logout()); // Logout on validation error
         setIsLoading(false);
       }
     } else {

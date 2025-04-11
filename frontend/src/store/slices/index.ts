@@ -1,2 +1,2 @@
-export { default as authReducer, login, register, getCurrentUser, logout, manualLogin, clearError as clearAuthError } from './authSlice';
+export { default as authReducer, logout, clearError as clearAuthError } from './authSlice';
 export { default as urlReducer, createUrl, getUrls, deleteUrl, clearError as clearUrlError, clearSuccess } from './urlSlice'; 
