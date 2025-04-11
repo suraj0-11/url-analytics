@@ -1,9 +1,10 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import api from '../../api/axiosConfig';
 import axios from 'axios';
 
 interface User {
-  _id: string;
+  _id?: string;
+  id?: string;
   email: string;
 }
 
@@ -13,6 +14,12 @@ interface AuthState {
   loading: boolean;
   error: string | null;
   isAuthenticated: boolean;
+}
+
+// Define the payload type for manualLogin
+interface ManualLoginPayload {
+  token: string;
+  user: User;
 }
 
 const initialState: AuthState = {
@@ -91,7 +98,7 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    manualLogin: (state, action) => {
+    manualLogin: (state, action: PayloadAction<ManualLoginPayload>) => {
       state.token = action.payload.token;
       state.user = action.payload.user;
       state.isAuthenticated = true;
