@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import api from '../../api/axiosConfig';
+import axios from 'axios';
 
 interface User {
   _id: string;
@@ -27,9 +28,20 @@ export const login = createAsyncThunk(
   async (credentials: { email: string; password: string }, { rejectWithValue }) => {
     try {
       console.log('Attempting login with:', { email: credentials.email });
-      const response = await api.post('/api/auth/login', credentials);
+      
+      // Create a direct axios instance without the interceptors
+      const directApi = axios.create({
+        baseURL: api.defaults.baseURL,
+        timeout: 15000
+      });
+      
+      // Make the direct API call
+      const response = await directApi.post('/api/auth/login', credentials);
       console.log('Login success response:', response.data);
+      
+      // Save token to localStorage
       localStorage.setItem('token', response.data.token);
+      
       return response.data;
     } catch (error: any) {
       console.error('Login error details:', {
@@ -100,6 +112,9 @@ const authSlice = createSlice({
         state.user = action.payload.user;
         state.token = action.payload.token;
         state.isAuthenticated = true;
+        
+        // Add redirection on successful login
+        window.location.href = '/dashboard';
       })
       .addCase(login.rejected, (state, action) => {
         state.loading = false;

@@ -56,7 +56,16 @@ const Login = () => {
       email: formData.email,
       password: formData.password.replace(/./g, '*')  // Log masked password for security
     });
-    dispatch(login(formData));
+    
+    try {
+      // Dispatch login action
+      await dispatch(login(formData)).unwrap();
+      
+      // If successful, the login.fulfilled case will handle redirection
+    } catch (error: any) {
+      console.error('Login submission error:', error);
+      // Error already handled by Redux
+    }
   };
 
   const getStatusColor = () => {
@@ -198,7 +207,12 @@ const Login = () => {
 
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded text-sm text-center">
-              {error}
+              <div className="font-medium">{error}</div>
+              {error.includes('failed') && (
+                <div className="text-xs mt-1">
+                  Try the "Test Authentication (Direct)" button below for a direct login.
+                </div>
+              )}
             </div>
           )}
 
@@ -208,7 +222,7 @@ const Login = () => {
               disabled={loading}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? 'Signing in...' : 'Sign in with Redux'}
             </button>
           </div>
         </form>
@@ -223,7 +237,7 @@ const Login = () => {
               disabled={testLoading}
               className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
             >
-              {testLoading ? 'Testing...' : 'Test Authentication (Direct)'}
+              {testLoading ? 'Signing in...' : 'Direct Sign in (Bypass Redux)'}
             </button>
 
             <button
