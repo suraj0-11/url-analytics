@@ -17,7 +17,8 @@ exports.createUrl = async (req, res) => {
       }
     }
 
-    const url = new Url({
+    // Create the new URL document
+    const newUrl = new Url({
       originalUrl,
       shortId,
       customAlias,
@@ -25,49 +26,91 @@ exports.createUrl = async (req, res) => {
       user: req.user.id
     });
 
-    await url.save();
+    // Save it to the database
+    const savedUrl = await newUrl.save();
 
     // Generate QR code
-    const qrCode = await QRCode.toDataURL(`${process.env.BASE_URL}/${shortId}`);
+    const qrCode = await QRCode.toDataURL(`${process.env.BASE_URL}/${savedUrl.shortId}`);
 
-    res.json({
-      url: {
-        originalUrl,
-        shortUrl: `${process.env.BASE_URL}/${shortId}`,
-        shortId,
-        _id: url._id,
-        clicks: url.clicks,
-        createdAt: url.createdAt,
-        expiresAt,
-        qrCode
-      }
-    });
+    // Construct the response object using the SAVED data
+    const responseUrl = {
+      _id: savedUrl._id,
+      originalUrl: savedUrl.originalUrl,
+      shortUrl: `${process.env.BASE_URL}/${savedUrl.shortId}`,
+      shortId: savedUrl.shortId,
+      clicks: savedUrl.clicks,
+      createdAt: savedUrl.createdAt,
+      expiresAt: savedUrl.expiresAt,
+      qrCode: qrCode
+    };
+
+    // Send the complete object nested under 'url' key
+    res.status(201).json({ url: responseUrl });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Error creating URL:', error);
+    // Handle potential duplicate key error for shortId more gracefully
+    if (error.code === 11000 && error.keyPattern && error.keyPattern.shortId) {
+      return res.status(400).json({ message: 'Generated short ID conflict, please try again.' });
+    }
+    res.status(500).json({ message: 'Server error creating URL' });
   }
 };
 
 // Get all URLs for user
 exports.getUrls = async (req, res) => {
   try {
-    const urlsFromDB = await Url.find({ user: req.user.id })
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const search = req.query.search || '';
+    
+    // Build query with search capability
+    const query = { user: req.user.id };
+    
+    // Add search functionality if search parameter is provided
+    if (search) {
+      query.$or = [
+        { originalUrl: { $regex: search, $options: 'i' } },
+        { shortId: { $regex: search, $options: 'i' } }
+      ];
+    }
+    
+    // Count total matching documents for pagination info
+    const total = await Url.countDocuments(query);
+    
+    // Get paginated results
+    const urlsFromDB = await Url.find(query)
       .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
       .select('-analytics'); // Keep excluding analytics if needed
 
-    // Map results to include the full shortUrl
-    const urls = urlsFromDB.map(url => ({
-      _id: url._id,
-      originalUrl: url.originalUrl,
-      shortUrl: `${process.env.BASE_URL}/${url.shortId}`, // Construct the full URL
-      shortId: url.shortId,
-      clicks: url.clicks,
-      createdAt: url.createdAt,
-      expiresAt: url.expiresAt,
-      // Add any other fields the frontend expects
+    // Map results to include the full shortUrl and generate QR codes
+    const urls = await Promise.all(urlsFromDB.map(async url => {
+      // Generate QR code for each URL
+      const qrCode = await QRCode.toDataURL(`${process.env.BASE_URL}/${url.shortId}`);
+      
+      return {
+        _id: url._id,
+        originalUrl: url.originalUrl,
+        shortUrl: `${process.env.BASE_URL}/${url.shortId}`, // Construct the full URL
+        shortId: url.shortId,
+        clicks: url.clicks,
+        createdAt: url.createdAt,
+        expiresAt: url.expiresAt,
+        qrCode: qrCode
+      };
     }));
 
-    res.json(urls);
+    // Return URLs with pagination info
+    res.json({
+      urls,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Server error' });
@@ -116,24 +159,23 @@ exports.redirectUrl = async (req, res) => {
   }
 };
 
-// Delete URL
+// Delete a URL
 exports.deleteUrl = async (req, res) => {
   try {
-    const deleteResult = await Url.deleteOne({
+    const url = await Url.findOne({
       _id: req.params.id,
-      user: req.user.id // Ensure user owns the URL
+      user: req.user.id // Ensure user owns this URL
     });
 
-    // Check if a document was actually deleted
-    if (deleteResult.deletedCount === 0) {
-      return res.status(404).json({ message: 'URL not found or access denied' });
+    if (!url) {
+      return res.status(404).json({ message: 'URL not found or you do not have permission to delete it' });
     }
 
-    // Send back the ID of the deleted URL for the frontend reducer
-    res.json({ id: req.params.id, message: 'URL deleted successfully' });
+    await Url.deleteOne({ _id: req.params.id });
 
+    res.json({ message: 'URL deleted successfully', id: req.params.id });
   } catch (error) {
     console.error('Error deleting URL:', error);
-    res.status(500).json({ message: 'Server error during URL deletion' });
+    res.status(500).json({ message: 'Server error deleting URL' });
   }
 }; 

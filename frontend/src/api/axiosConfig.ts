@@ -2,36 +2,46 @@ import axios from 'axios';
 
 // Create a specific instance
 const api = axios.create({
-  // You could set a baseURL here if desired, e.g.:
-  // baseURL: '/api',
+  // Set the baseURL to match the server
+  baseURL: 'http://localhost:5000',
 });
 
 // Add a request interceptor TO THE SPECIFIC INSTANCE
 api.interceptors.request.use(
   (config) => {
+    // Get token from localStorage each time to ensure it's the latest
     const token = localStorage.getItem('token');
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
+      console.log('[Axios Interceptor] Adding token to request');
+    } else {
+      console.log('[Axios Interceptor] No token found in localStorage');
     }
-    console.log('[Axios Interceptor] Sending request with headers:', config.headers);
     return config;
   },
   (error) => {
+    console.error('[Axios Interceptor] Request error:', error);
     return Promise.reject(error);
   }
 );
 
-// Add a response interceptor TO THE SPECIFIC INSTANCE (optional but good practice)
+// Add a response interceptor TO THE SPECIFIC INSTANCE
 api.interceptors.response.use(
   (response) => {
     return response;
   },
   (error) => {
     if (error.response && error.response.status === 401) {
-      console.error('Unauthorized request - 401', error.response);
-      // Optional: Clear token and redirect
-      // localStorage.removeItem('token');
-      // window.location.href = '/login';
+      console.error('[Axios Interceptor] Unauthorized request - 401', error.response);
+      
+      // Clear token and redirect to login on 401 errors
+      localStorage.removeItem('token');
+      
+      // Only redirect if we're not already on the login page
+      if (!window.location.pathname.includes('/login')) {
+        console.log('[Axios Interceptor] Redirecting to login page');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
