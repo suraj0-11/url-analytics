@@ -30,7 +30,14 @@ export const login = createAsyncThunk(
       localStorage.setItem('token', response.data.token);
       return response.data;
     } catch (error: any) {
-      return rejectWithValue(error.response?.data?.message || 'Login failed');
+      if (!error.response) {
+        return rejectWithValue('Network error: Unable to reach the server. Please check your connection and server status.');
+      }
+      
+      return rejectWithValue(
+        error.response?.data?.message || 
+        `Login failed (${error.response?.status || 'unknown error'})`
+      );
     }
   }
 );

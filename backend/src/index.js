@@ -23,9 +23,25 @@ app.use(express.json());
 app.use(morgan('dev'));
 
 // Connect to MongoDB
-mongoose.connect(process.env.MONGODB_URI)
-  .then(() => console.log('Connected to MongoDB'))
-  .catch((err) => console.error('MongoDB connection error:', err));
+console.log('Connecting to MongoDB...');
+console.log('Using MONGODB_URI:', process.env.MONGODB_URI ? 'URI is defined' : 'URI is undefined');
+
+mongoose.connect(process.env.MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 5000 // Timeout after 5s instead of 30s
+})
+  .then(() => console.log('Connected to MongoDB successfully'))
+  .catch((err) => {
+    console.error('MongoDB connection error details:', {
+      name: err.name,
+      message: err.message, 
+      code: err.code,
+      stack: err.stack
+    });
+    // Don't exit the process, let the app continue to start
+    // This will allow the server to run even if DB connection fails initially
+  });
 
 // --- Redirect Route --- Must be defined before API routes
 app.get('/:shortId', redirectUrl);
@@ -34,6 +50,17 @@ app.get('/:shortId', redirectUrl);
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/urls', require('./routes/urls'));
 app.use('/api/analytics', require('./routes/analytics'));
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  const status = {
+    status: 'ok',
+    timestamp: new Date(),
+    uptime: process.uptime(),
+    mongoConnection: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected'
+  };
+  res.json(status);
+});
 
 // Error handling middleware
 app.use((err, req, res, next) => {

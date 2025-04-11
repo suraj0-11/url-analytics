@@ -1,6 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/axiosConfig';
 
+// Add interface for backend status
+interface BackendStatus {
+  status: string;
+  timestamp: string;
+  uptime: number;
+  mongoConnection: 'connected' | 'disconnected';
+}
+
 interface FormData {
   originalUrl: string;
   customAlias: string;
@@ -57,6 +65,11 @@ const Dashboard = () => {
   const [selectedQR, setSelectedQR] = useState<string | null>(null);
   const [selectedUrlInfo, setSelectedUrlInfo] = useState<UrlData | null>(null);
 
+  // Add backend status state
+  const [backendStatus, setBackendStatus] = useState<BackendStatus | null>(null);
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
+
   // Debounce search term
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -70,6 +83,17 @@ const Dashboard = () => {
   useEffect(() => {
     loadUrls(pagination.page, pagination.limit, debouncedSearchTerm);
   }, [pagination.page, pagination.limit, debouncedSearchTerm]);
+
+  // Add useEffect to check backend status
+  useEffect(() => {
+    checkBackendStatus();
+    
+    // Set up interval to check status every 30 seconds
+    const intervalId = setInterval(checkBackendStatus, 30000);
+    
+    // Clean up interval on component unmount
+    return () => clearInterval(intervalId);
+  }, []);
 
   // Direct API call to load URLs with pagination and search
   const loadUrls = async (page: number = 1, limit: number = 10, search: string = '') => {
@@ -102,6 +126,23 @@ const Dashboard = () => {
       setLocalUrls([]);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Function to check backend status
+  const checkBackendStatus = async () => {
+    setStatusLoading(true);
+    setStatusError(null);
+    
+    try {
+      const response = await api.get('/api/health');
+      setBackendStatus(response.data);
+    } catch (error) {
+      console.error('Error checking backend status:', error);
+      setStatusError('Failed to connect to backend');
+      setBackendStatus(null);
+    } finally {
+      setStatusLoading(false);
     }
   };
 
@@ -337,9 +378,56 @@ const Dashboard = () => {
     );
   };
 
+  // Render status indicator badge
+  const renderStatusBadge = () => {
+    if (statusLoading) {
+      return (
+        <div className="flex items-center space-x-2">
+          <div className="h-4 w-4 bg-yellow-500 rounded-full animate-pulse"></div>
+          <span className="text-sm text-gray-600">Checking...</span>
+        </div>
+      );
+    }
+    
+    if (statusError || !backendStatus) {
+      return (
+        <div className="flex items-center space-x-2" title={statusError || 'Unable to connect to backend'}>
+          <div className="h-4 w-4 bg-red-500 rounded-full"></div>
+          <span className="text-sm text-red-600">Backend Disconnected</span>
+          <button 
+            onClick={checkBackendStatus}
+            className="text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded"
+          >
+            Retry
+          </button>
+        </div>
+      );
+    }
+    
+    const isFullyConnected = backendStatus.status === 'ok' && backendStatus.mongoConnection === 'connected';
+    
+    return (
+      <div className="flex items-center space-x-2" title={`MongoDB: ${backendStatus.mongoConnection}`}>
+        <div className={`h-4 w-4 ${isFullyConnected ? 'bg-green-500' : 'bg-yellow-500'} rounded-full`}></div>
+        <span className={`text-sm ${isFullyConnected ? 'text-green-600' : 'text-yellow-600'}`}>
+          {isFullyConnected ? 'Backend Connected' : 'Partial Connection'}
+        </span>
+        <button 
+          onClick={checkBackendStatus}
+          className="text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded"
+        >
+          Refresh
+        </button>
+      </div>
+    );
+  };
+
   return (
     <div className="container mx-auto px-4 py-8 space-y-8">
-      <h1 className="text-3xl font-bold">URL Analytics Dashboard</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">URL Analytics Dashboard</h1>
+        {renderStatusBadge()}
+      </div>
       
       {createError && (
         <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">

@@ -1,8 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { login } from '../store/slices';
 import { useAppDispatch } from '../hooks/useAppDispatch';
+import api from '../api/axiosConfig';
+
+interface BackendStatus {
+  status: string;
+  mongoConnection: 'connected' | 'disconnected';
+  uptime?: number;
+}
 
 const Login = () => {
   const dispatch = useAppDispatch();
@@ -11,6 +18,27 @@ const Login = () => {
     email: 'intern@dacoid.com',
     password: 'Test123',
   });
+  const [backendStatus, setBackendStatus] = useState<BackendStatus | null>(null);
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
+
+  const checkBackendStatus = async () => {
+    setStatusLoading(true);
+    setStatusError(null);
+    try {
+      const response = await api.get('/api/health');
+      setBackendStatus(response.data);
+    } catch (error) {
+      console.error('Failed to fetch backend status:', error);
+      setStatusError('Backend unavailable');
+    } finally {
+      setStatusLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    checkBackendStatus();
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -22,6 +50,24 @@ const Login = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     dispatch(login(formData));
+  };
+
+  const getStatusColor = () => {
+    if (statusLoading) return 'bg-gray-200';
+    if (statusError) return 'bg-red-500';
+    if (!backendStatus) return 'bg-red-500';
+    
+    return backendStatus.status === 'ok' && backendStatus.mongoConnection === 'connected' 
+      ? 'bg-green-500' 
+      : 'bg-yellow-500';
+  };
+
+  const getStatusText = () => {
+    if (statusLoading) return 'Checking...';
+    if (statusError) return 'Backend unavailable';
+    if (!backendStatus) return 'Backend unavailable';
+    
+    return `Backend: ${backendStatus.status}, DB: ${backendStatus.mongoConnection}`;
   };
 
   return (
@@ -36,6 +82,25 @@ const Login = () => {
           <h2 className="text-center text-2xl font-semibold text-gray-900">
             Sign in to your account
           </h2>
+          
+          {/* Backend Status Indicator */}
+          <div className="mt-2 flex flex-col items-center">
+            <div className="flex items-center">
+              <div className={`h-3 w-3 rounded-full mr-2 ${getStatusColor()}`}></div>
+              <span className="text-xs text-gray-500">{getStatusText()}</span>
+            </div>
+            <div className="text-xs text-gray-400 mt-1">
+              API: {api.defaults.baseURL || 'Not configured'}
+            </div>
+            <button 
+              type="button"
+              onClick={checkBackendStatus}
+              disabled={statusLoading}
+              className="mt-2 text-xs text-blue-500 hover:text-blue-700 disabled:text-gray-400"
+            >
+              {statusLoading ? 'Checking...' : 'Refresh Status'}
+            </button>
+          </div>
         </div>
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="rounded-md shadow-sm space-y-4">
