@@ -24,8 +24,34 @@ api.interceptors.request.use(
     // Get token from localStorage each time to ensure it's the latest
     const token = localStorage.getItem('token');
     if (token) {
-      config.headers['Authorization'] = `Bearer ${token}`;
-      console.log('[Axios Interceptor] Adding token to request:', config.url);
+      // Check if token is valid (not expired) - basic check based on format
+      try {
+        // JWT tokens have 3 parts separated by dots
+        const parts = token.split('.');
+        if (parts.length !== 3) {
+          console.warn('[Axios Interceptor] Token format invalid, removing token');
+          localStorage.removeItem('token');
+          return config;
+        }
+        
+        // Try to decode the payload (middle part)
+        const payload = JSON.parse(atob(parts[1]));
+        
+        // Check if token is expired
+        if (payload.exp && payload.exp * 1000 < Date.now()) {
+          console.warn('[Axios Interceptor] Token expired, removing token');
+          localStorage.removeItem('token');
+          return config;
+        }
+        
+        // Token seems valid, add it to headers
+        config.headers['Authorization'] = `Bearer ${token}`;
+        console.log('[Axios Interceptor] Adding token to request:', config.url);
+      } catch (e) {
+        console.warn('[Axios Interceptor] Error validating token:', e);
+        // Don't remove token on parse error - it might be a different format
+        config.headers['Authorization'] = `Bearer ${token}`;
+      }
     } else {
       console.log('[Axios Interceptor] No token found for request:', config.url);
     }

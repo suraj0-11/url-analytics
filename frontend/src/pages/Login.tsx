@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { RootState } from '../store';
 import { login } from '../store/slices';
+import { manualLogin } from '../store/slices/authSlice';
 import { useAppDispatch } from '../hooks/useAppDispatch';
 import api from '../api/axiosConfig';
 import axios from 'axios';
@@ -107,11 +108,21 @@ const Login = () => {
         `Success! Token received: ${response.data.token.substring(0, 15)}...`
       );
       
-      // Store token and redirect to dashboard when test is successful
+      // Store token and update Redux state
       const token = response.data.token;
       if (token) {
         localStorage.setItem('token', token);
-        window.location.href = '/dashboard';
+        
+        // Update Redux state to match the authentication
+        dispatch(manualLogin({ 
+          token: token,
+          user: response.data.user || { email: formData.email, _id: 'unknown' }
+        }));
+        
+        // Redirect to dashboard after a short delay to allow state updates
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 100);
       }
     } catch (error: any) {
       console.error('Test auth error:', error);
