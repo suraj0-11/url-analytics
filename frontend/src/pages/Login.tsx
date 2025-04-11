@@ -97,6 +97,13 @@ const Login = () => {
       setTestResult(
         `Success! Token received: ${response.data.token.substring(0, 15)}...`
       );
+      
+      // Store token and redirect to dashboard when test is successful
+      const token = response.data.token;
+      if (token) {
+        localStorage.setItem('token', token);
+        window.location.href = '/dashboard';
+      }
     } catch (error: any) {
       console.error('Test auth error:', error);
       setTestResult(
